@@ -43,16 +43,23 @@ export async function loginUser(input: unknown) {
 export async function createListing(ownerId: string, input: unknown) {
   const data = listingSchema.parse(input);
   const { photoUrls, ...listingData } = data;
+
   return prisma.listing.create({
     data: {
       ...listingData,
-      ownerId,
+      owner: {
+        connect: {
+          id: ownerId,
+        },
+      },
       status: 'PENDING',
-      photos: { create: photoUrls.map((url, position) => ({ url, position, isMain: position === 0 })) },
-    },
-    include: { photos: true, owner: true },
+      photos: {
+        create: photoUrls.map((url) => ({ url })),
+      },
+    } as any,
   });
 }
+
 
 export async function updateListing(ownerId: string, listingId: string, input: unknown) {
   const listing = await prisma.listing.findUnique({ where: { id: listingId } });
@@ -78,8 +85,21 @@ export async function toggleFavorite(userId: string, listingId: string) {
 
 export async function sendMessage(senderId: string, input: unknown) {
   const data = messageSchema.parse(input);
-  if (senderId === data.receiverId) throw new Error('Impossible de vous envoyer un message à vous-même.');
-  return prisma.message.create({ data: { ...data, senderId } });
+
+  if (senderId === data.receiverId) {
+    throw new Error('Impossible de vous envoyer un message à vous-même.');
+  }
+
+  return prisma.message.create({
+    data: {
+      ...data,
+      sender: {
+        connect: {
+          id: senderId,
+        },
+      },
+    } as any,
+  });
 }
 
 export async function uploadPhoto(file: File) {
